@@ -9,36 +9,56 @@ class ApiService {
       // Đầu tiên hãy kiểm tra và seed dữ liệu nếu cần
       await seedInitialBooks();
 
-      final snapshot = await _firestore.collection('books').limit(20).get();
+      final snapshot = await _firestore.collection('books').limit(20).get(
+        const GetOptions(source: Source.serverAndCache)
+      );
+      
+      if (snapshot.docs.isEmpty) {
+        // Nếu không có dữ liệu từ server và cache, có thể là do lỗi mạng ở lần đầu chạy
+        throw Exception('Không có kết nối internet và chưa có dữ liệu lưu cục bộ.');
+      }
+      
       return snapshot.docs.map((doc) => Book.fromMap(doc.data(), doc.id)).toList();
     } on FirebaseException catch (e) {
-      print('Lỗi Firebase: $e');
-      if (e.code == 'unavailable' || e.code == 'network-request-failed') {
-        throw Exception('Không có kết nối internet. Vui lòng kiểm tra lại mạng.');
-      }
-      throw Exception('Lỗi Firebase: ${e.message}');
+       print('Lỗi Firebase: $e');
+       // Các mã lỗi liên quan đến mạng
+       if (e.code == 'unavailable' || e.code == 'network-request-failed' || e.code == 'deadline-exceeded') {
+         throw Exception('Không có kết nối internet. Vui lòng kiểm tra lại mạng.');
+       }
+       throw Exception('Lỗi Firebase (${e.code}): ${e.message}');
     } catch (e) {
-      print('Lỗi khác: $e');
-      if (e.toString().contains('SocketException') || e.toString().contains('network')) {
+      print('Lỗi thực tế: $e');
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('socketexception') || 
+          errStr.contains('network') || 
+          errStr.contains('getaddrinfo') || 
+          errStr.contains('failed host lookup')) {
         throw Exception('Không có kết nối internet. Vui lòng kiểm tra lại mạng.');
       }
       throw Exception('Lỗi hệ thống: $e');
     }
   }
 
-  // Tự động đẩy dữ liệu mẫu lên Firebase nếu chưa có gì
+  // Tự động đẩy dữ liệu mẫu lên Firebase nếu chưa đủ
   static Future<void> seedInitialBooks() async {
     try {
-      final query = await _firestore.collection('books').limit(1).get();
-      if (query.docs.isNotEmpty) return; // Đã có dữ liệu, không làm gì cả
+      final query = await _firestore.collection('books').get();
+      // Nếu đã có từ 10 quyển trở lên thì không cần seed nữa
+      if (query.docs.length >= 10) return;
 
-      print('Đang đẩy dữ liệu mẫu lên Firebase...');
+      print('Đang đồng bộ thêm dữ liệu mẫu lên Firebase (Hiện có: ${query.docs.length})...');
       final mockBooks = getMockBooks();
+      
       for (var book in mockBooks) {
-        await _firestore.collection('books').add(book.toMap());
+        // Kiểm tra xem cuốn sách này đã tồn tại chưa (để tránh trùng lặp khi seed thêm)
+        final alreadyExists = query.docs.any((doc) => doc.data()['title'] == book.title);
+        if (!alreadyExists) {
+          await _firestore.collection('books').add(book.toMap());
+        }
       }
     } catch (e) {
-      print('Không thể seed dữ liệu: $e');
+      print('Không thể seed dữ liệu (Có thể đang offline): $e');
+      // Không ném lỗi ở đây để fetchBooks vẫn có thể lấy dữ liệu từ cache nếu có
     }
   }
 
