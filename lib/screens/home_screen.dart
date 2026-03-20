@@ -1,7 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../services/api_service.dart';
+import 'book_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class LibraryHomeScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   late Future<List<Book>> _futureBooks;
   String _query = '';
   String _selectedCategory = 'Tất cả';
-  final List<String> _categories = ['Tất cả', 'Lập trình', 'AI & Data', 'Cybersecurity', 'Công nghệ'];
+  List<String> _categories = ['Tất cả'];
 
   @override
   void initState() {
@@ -51,39 +51,50 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF6EC),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('TH3-2351160546-Bùi Ngọc Tùng Sơn'),
-        backgroundColor: Colors.blueGrey[900],
+        title: Text(
+          'TH3 - Bùi Ngọc Tùng Sơn - 2351160546',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        backgroundColor: const Color(0xFF1A1A1A),
         foregroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0,
       ),
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.blueGrey[900],
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            ),
             child: TextField(
               onChanged: (v) => setState(() => _query = v),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Tìm theo chữ cái đầu của sách...',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                hintText: 'Tìm theo chữ cái đầu...',
+                hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                 prefixIcon: const Icon(Icons.search, color: Colors.white70),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.1),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
+                  borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
             ),
           ),
+          const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: SizedBox(
-              height: 40,
+              height: 45,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,8 +108,17 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
                       label: Text(cat),
                       selected: isSel,
                       onSelected: (_) => setState(() => _selectedCategory = cat),
-                      selectedColor: Colors.blueGrey[700],
-                      labelStyle: TextStyle(color: isSel ? Colors.white : Colors.blueGrey[900]),
+                      backgroundColor: Colors.white,
+                      selectedColor: const Color(0xFF1A1A1A),
+                      labelStyle: TextStyle(
+                        color: isSel ? Colors.white : const Color(0xFF1A1A1A),
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(color: isSel ? Colors.transparent : Colors.grey[300]!),
+                      ),
+                      showCheckmark: false,
                     ),
                   );
                 },
@@ -110,27 +130,90 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
               future: _futureBooks,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Colors.blueGrey));
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF1A1A1A)));
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Lỗi: ${snapshot.error}'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.wifi_off_rounded, size: 80, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            snapshot.error.toString().replaceAll('Exception: ', ''),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('THỬ LẠI'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1A1A1A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _futureBooks = Future.value(ApiService.getMockBooks());
+                              });
+                            },
+                            child: const Text('Xem dữ liệu mẫu (Offline)', style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
                 if (snapshot.hasData) {
-                  final filteredList = _getFilteredBooks(snapshot.data!);
+                  final books = snapshot.data!;
+                  final foundCategories = books.map((b) => b.category).toSet().toList();
+                  foundCategories.sort();
+                  if (_categories.length <= 1 && foundCategories.isNotEmpty) {
+                    Future.microtask(() {
+                      setState(() {
+                        _categories = ['Tất cả', ...foundCategories];
+                      });
+                    });
+                  }
+
+                  final filteredList = _getFilteredBooks(books);
                   if (filteredList.isEmpty) {
-                    return const Center(child: Text('Không có sách bắt đầu bằng chữ cái này'));
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off_rounded, size: 60, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text('Không tìm thấy sách phù hợp', style: TextStyle(color: Colors.grey[500])),
+                        ],
+                      ),
+                    );
                   }
                   
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.65,
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      _loadData();
+                    },
+                    color: const Color(0xFF1A1A1A),
+                    child: GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 20,
+                        childAspectRatio: 0.62,
+                      ),
+                      itemCount: filteredList.length,
+                      itemBuilder: (ctx, i) => _buildBookCard(filteredList[i]),
                     ),
-                    itemCount: filteredList.length,
-                    itemBuilder: (ctx, i) => _buildBookCard(filteredList[i]),
                   );
                 }
                 return const SizedBox.shrink();
@@ -143,54 +226,89 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   }
 
   Widget _buildBookCard(Book book) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: CachedNetworkImage(
-              imageUrl: book.image,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: Colors.grey[200]),
-              errorWidget: (context, url, error) => const Icon(Icons.book, size: 50),
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
-          Padding(
-            padding: const EdgeInsets.all(10.0),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => BookDetailScreen(book: book)),
+              );
+            },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  book.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  book.author,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blueGrey[50],
-                    borderRadius: BorderRadius.circular(4),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Hero(
+                        tag: book.id,
+                        child: CachedNetworkImage(
+                          imageUrl: book.image,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(color: Colors.grey[100], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                          errorWidget: (context, url, error) => Container(color: Colors.grey[100], child: const Icon(Icons.book, size: 40, color: Colors.grey)),
+                        ),
+                      ),
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            book.category,
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    book.category,
-                    style: const TextStyle(fontSize: 10, color: Colors.blueGrey, fontWeight: FontWeight.bold),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, height: 1.2),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        book.author,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

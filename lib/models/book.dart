@@ -1,5 +1,5 @@
 class Book {
-  final int id;
+  final String id;
   final String title;
   final String author;
   final String description;
@@ -18,14 +18,20 @@ class Book {
   });
 
   factory Book.fromJson(Map<String, dynamic> json) {
+    // Google Books API mapping
+    final volumeInfo = json['volumeInfo'] as Map<String, dynamic>? ?? {};
+    final authors = volumeInfo['authors'] as List<dynamic>? ?? [];
+    final categories = volumeInfo['categories'] as List<dynamic>? ?? [];
+    final imageLinks = volumeInfo['imageLinks'] as Map<String, dynamic>? ?? {};
+
     return Book(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      title: json['title'] ?? '',
-      author: json['author'] ?? 'Unknown',
-      description: json['description'] ?? '',
-      category: json['category'] ?? '',
-      image: json['image'] ?? '',
-      pages: json['pages'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      title: volumeInfo['title'] ?? 'Không có tiêu đề',
+      author: authors.isNotEmpty ? authors.join(', ') : 'Ẩn danh',
+      description: volumeInfo['description'] ?? 'Không có mô tả.',
+      category: categories.isNotEmpty ? categories[0] : 'Chung',
+      image: imageLinks['thumbnail'] ?? 'https://via.placeholder.com/150',
+      pages: volumeInfo['pageCount'] ?? 0,
     );
   }
 
