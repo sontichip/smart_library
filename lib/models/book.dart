@@ -35,8 +35,19 @@ class Book {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
+  factory Book.fromMap(Map<String, dynamic> map, String docId) {
+    return Book(
+      id: docId,
+      title: map['title'] ?? '',
+      author: map['author'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? '',
+      image: map['image'] ?? '',
+      pages: map['pages'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
     'title': title,
     'author': author,
     'description': description,
